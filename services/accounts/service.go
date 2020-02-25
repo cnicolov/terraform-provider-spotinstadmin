@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/cnicolov/terraform-provider-spotinstadmin/client"
@@ -15,16 +16,20 @@ const (
 	accountServiceBaseURL     = "https://api.spotinst.io"
 )
 
+// Service is a client for creating accounts
 type Service struct {
 	httpClient *client.Client
 }
 
+// New creates new accounts service client
 func New(token string) *Service {
+	log.Println("Initializing service")
 	return &Service{
 		httpClient: client.New(accountServiceBaseURL, token),
 	}
 }
 
+// Account represesnts Spotinst account in API
 type Account struct {
 	ID                 string `json:"id"`
 	Name               string `json:"name"`
@@ -32,6 +37,8 @@ type Account struct {
 	ProviderExternalID string `json:"providerExternalId,omitempty"`
 }
 
+// AccountNotFoundError is raised when looking up account
+// fails because there's no such account in Spotinst:w
 type AccountNotFoundError struct {
 	AccountID string
 }
@@ -40,13 +47,16 @@ func (a *AccountNotFoundError) Error() string {
 	return fmt.Sprintf("Account %s not found", a.AccountID)
 }
 
+// Create creates accoount in Spotinst
 func (as *Service) Create(name string) (*Account, error) {
 
 	body := map[string]map[string]string{
 		"account": {"name": name},
 	}
 
+	log.Printf("Making request %v\n", body)
 	req, err := as.httpClient.NewRequest(http.MethodPost, "/setup/account", &body)
+
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +78,9 @@ func (as *Service) Create(name string) (*Account, error) {
 	return &account, err
 }
 
+// Get returns account by id
 func (as *Service) Get(id string) (*Account, error) {
+	log.Printf("Getting account %v\n", id)
 	req, err := as.httpClient.NewRequest(http.MethodGet, "/setup/account", nil)
 	if err != nil {
 		return nil, err
@@ -81,6 +93,37 @@ func (as *Service) Get(id string) (*Account, error) {
 		return nil, err
 	}
 
+	accountList, err := transformGetAccountsResponse(r)
+
+	log.Printf("%#v", accountList)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return filterAccountByID(id, accountList)
+}
+
+// Delete delets account by id
+func (as *Service) Delete(id string) error {
+	req, err := as.httpClient.NewRequest(http.MethodDelete, fmt.Sprintf("/setup/account/%s", id), nil)
+	v := make(map[string]interface{})
+	_, err = as.httpClient.Do(req, &v)
+	return err
+}
+
+// IsAccountNotFoundErr checks whether errors is of type AccountNotFoundError
+func IsAccountNotFoundErr(err error) bool {
+	var found bool
+	switch err.(type) {
+	case *AccountNotFoundError:
+		found = true
+	default:
+	}
+	return found
+}
+
+func transformGetAccountsResponse(r common.Response) ([]*Account, error) {
 	var al []*Account
 
 	type getAccountResponse struct {
@@ -93,7 +136,7 @@ func (as *Service) Get(id string) (*Account, error) {
 	for _, data := range r.Response.Items {
 
 		var acc getAccountResponse
-		err = json.Unmarshal(data, &acc)
+		err := json.Unmarshal(data, &acc)
 		if err != nil {
 			return nil, err
 		}
@@ -106,29 +149,12 @@ func (as *Service) Get(id string) (*Account, error) {
 		})
 
 	}
-
-	return filterAccountByID(id, al)
-}
-
-func (as *Service) Delete(id string) error {
-	req, err := as.httpClient.NewRequest(http.MethodDelete, fmt.Sprintf("/setup/account/%s", id), nil)
-	v := make(map[string]interface{})
-	_, err = as.httpClient.Do(req, &v)
-	return err
-}
-
-func (as *Service) IsAccountNotFoundErr(err error) bool {
-	var found bool
-	switch err.(type) {
-	case *AccountNotFoundError:
-		found = true
-	default:
-	}
-	return found
+	return al, nil
 }
 
 func filterAccountByID(id string, al []*Account) (*Account, error) {
 	for _, a := range al {
+		log.Printf("Checking %v with %v\n", a.ID, id)
 		if a.ID == id {
 			return a, nil
 		}
