@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"time"
 
 	"github.com/cnicolov/terraform-provider-spotinstadmin/client"
 	"github.com/cnicolov/terraform-provider-spotinstadmin/client/common"
@@ -48,7 +50,7 @@ func (a *AccountNotFoundError) Error() string {
 }
 
 // Create creates accoount in Spotinst
-func (as *Service) Create(name string) (*Account, error) {
+func (as *Service) Create(name, iamRole, externalID string) (*Account, error) {
 
 	body := map[string]map[string]string{
 		"account": {"name": name},
@@ -75,13 +77,60 @@ func (as *Service) Create(name string) (*Account, error) {
 
 	err = json.Unmarshal(v.Response.Items[0], &account)
 
-	return &account, err
+	if err != nil {
+		return nil, err
+	}
+
+	time.Sleep(time.Second * 5)
+
+	err = as.setupCloudCredentials(account.ID, iamRole, externalID)
+
+	if err != nil {
+		_ = as.Delete(account.ID)
+		return nil, err
+	}
+
+	return &account, nil
+}
+
+func (as *Service) setupCloudCredentials(accountID, iamRole, externalID string) error {
+
+	body := map[string]map[string]string{
+		"credentials": {"iamRole": iamRole, "externalId": externalID},
+	}
+
+	req, err := as.httpClient.NewRequest(http.MethodPost, "/setup/credentials/aws", &body)
+
+	q, _ := url.ParseQuery(req.URL.RawQuery)
+
+	q.Add("accountId", accountID)
+
+	req.URL.RawQuery = q.Encode()
+	if err != nil {
+		return err
+	}
+
+	log.Printf("%#v", req)
+
+	var r common.Response
+
+	_, err = as.httpClient.Do(req, &r)
+
+	if len(r.Response.Errors) > 0 {
+		return fmt.Errorf("failed setting up cloud credentials, %#v", r.Response.Errors)
+	}
+
+	log.Printf("%#v", r)
+
+	return err
 }
 
 // Get returns account by id
 func (as *Service) Get(id string) (*Account, error) {
 	log.Printf("Getting account %v\n", id)
+
 	req, err := as.httpClient.NewRequest(http.MethodGet, "/setup/account", nil)
+
 	if err != nil {
 		return nil, err
 	}

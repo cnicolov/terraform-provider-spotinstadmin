@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -76,6 +77,8 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(resp.Body)
+
+	log.Println(string(b))
 
 	if err != nil {
 		return nil, err

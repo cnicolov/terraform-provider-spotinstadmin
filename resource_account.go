@@ -36,8 +36,10 @@ func resourceAccount() *schema.Resource {
 func resourceAccountCreate(d *schema.ResourceData, m interface{}) error {
 	meta := m.(*Meta)
 	name := d.Get("name").(string)
+	iamRole := d.Get("aws_role_arn").(string)
+	externalID := d.Get("aws_external_id").(string)
 
-	out, err := meta.accountsService.Create(name)
+	out, err := meta.accountsService.Create(name, iamRole, externalID)
 
 	if err != nil {
 		return err
