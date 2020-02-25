@@ -7,8 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-
-	"github.com/hashicorp/terraform/httpclient"
+	"time"
 )
 
 type Client struct {
@@ -18,14 +17,20 @@ type Client struct {
 	httpClient *http.Client
 }
 
-func NewClient(baseURLString, token string) *Client {
+func New(baseURLString, token string) *Client {
 	baseURL, err := url.Parse(baseURLString)
 	if err != nil {
 		panic(err)
 	}
+
+	client := &http.Client{
+		Timeout:   time.Second * 5,
+		Transport: http.DefaultTransport,
+	}
+
 	return &Client{
 		baseURL:    baseURL,
-		httpClient: httpclient.New(),
+		httpClient: client,
 		token:      token,
 	}
 }

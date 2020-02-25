@@ -1,4 +1,4 @@
-package client
+package accounts
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/cnicolov/terraform-provider-spotinstadmin/client"
 	"github.com/cnicolov/terraform-provider-spotinstadmin/client/common"
 )
 
@@ -14,13 +15,13 @@ const (
 	accountServiceBaseURL     = "https://api.spotinst.io"
 )
 
-type AccountService struct {
-	httpClient *Client
+type Service struct {
+	httpClient *client.Client
 }
 
-func NewAccountService(token string) *AccountService {
-	return &AccountService{
-		httpClient: NewClient(accountServiceBaseURL, token),
+func New(token string) *Service {
+	return &Service{
+		httpClient: client.New(accountServiceBaseURL, token),
 	}
 }
 
@@ -39,15 +40,10 @@ func (a *AccountNotFoundError) Error() string {
 	return fmt.Sprintf("Account %s not found", a.AccountID)
 }
 
-func (as *AccountService) Create(name string) (*Account, error) {
-	body := struct {
-		Account struct {
-			Name string `json:"name"`
-		} `json:"account"`
-	}{
-		struct {
-			Name string `json:"name"`
-		}{Name: name},
+func (as *Service) Create(name string) (*Account, error) {
+
+	body := map[string]map[string]string{
+		"account": {"name": name},
 	}
 
 	req, err := as.httpClient.NewRequest(http.MethodPost, "/setup/account", &body)
@@ -72,7 +68,7 @@ func (as *AccountService) Create(name string) (*Account, error) {
 	return &account, err
 }
 
-func (as *AccountService) Get(id string) (*Account, error) {
+func (as *Service) Get(id string) (*Account, error) {
 	req, err := as.httpClient.NewRequest(http.MethodGet, "/setup/account", nil)
 	if err != nil {
 		return nil, err
@@ -114,6 +110,23 @@ func (as *AccountService) Get(id string) (*Account, error) {
 	return filterAccountByID(id, al)
 }
 
+func (as *Service) Delete(id string) error {
+	req, err := as.httpClient.NewRequest(http.MethodDelete, fmt.Sprintf("/setup/account/%s", id), nil)
+	v := make(map[string]interface{})
+	_, err = as.httpClient.Do(req, &v)
+	return err
+}
+
+func (as *Service) IsAccountNotFoundErr(err error) bool {
+	var found bool
+	switch err.(type) {
+	case *AccountNotFoundError:
+		found = true
+	default:
+	}
+	return found
+}
+
 func filterAccountByID(id string, al []*Account) (*Account, error) {
 	for _, a := range al {
 		if a.ID == id {
@@ -121,11 +134,4 @@ func filterAccountByID(id string, al []*Account) (*Account, error) {
 		}
 	}
 	return nil, &AccountNotFoundError{AccountID: id}
-}
-
-func (as *AccountService) Delete(id string) error {
-	req, err := as.httpClient.NewRequest(http.MethodDelete, fmt.Sprintf("/setup/account/%s", id), nil)
-	v := make(map[string]interface{})
-	_, err = as.httpClient.Do(req, &v)
-	return err
 }
