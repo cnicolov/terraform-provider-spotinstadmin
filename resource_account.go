@@ -34,12 +34,12 @@ func resourceAccount() *schema.Resource {
 }
 
 func resourceAccountCreate(d *schema.ResourceData, m interface{}) error {
-	meta := m.(*Meta)
+	accountsService := m.(*Meta).accountsService
 	name := d.Get("name").(string)
 	iamRole := d.Get("aws_role_arn").(string)
 	externalID := d.Get("aws_external_id").(string)
 
-	out, err := meta.accountsService.Create(name, iamRole, externalID)
+	out, err := accountsService.Create(name, iamRole, externalID)
 
 	if err != nil {
 		return err
@@ -53,8 +53,8 @@ func resourceAccountCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func resourceAccountRead(d *schema.ResourceData, m interface{}) error {
-	meta := m.(*Meta)
-	obj, err := meta.accountsService.Get(d.Id())
+	accountsService := m.(*Meta).accountsService
+	obj, err := accountsService.Get(d.Id())
 	if err != nil {
 		if accounts.IsAccountNotFoundErr(err) {
 			d.SetId("")
@@ -75,6 +75,6 @@ func resourceAccountUpdate(d *schema.ResourceData, m interface{}) error {
 }
 
 func resourceAccountDelete(d *schema.ResourceData, m interface{}) error {
-	meta := m.(*Meta)
-	return meta.accountsService.Delete(d.Id())
+	accountsService := m.(*Meta).accountsService
+	return accountsService.Delete(d.Id())
 }

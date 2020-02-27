@@ -25,7 +25,7 @@ type Service struct {
 
 // New creates new accounts service client
 func New(token string) *Service {
-	log.Println("Initializing service")
+	log.Println("Initializing accounts service")
 	return &Service{
 		httpClient: client.New(accountServiceBaseURL, token),
 	}
@@ -142,9 +142,7 @@ func (as *Service) Get(id string) (*Account, error) {
 		return nil, err
 	}
 
-	accountList, err := transformGetAccountsResponse(r)
-
-	log.Printf("%#v", accountList)
+	accountList, err := accountsFromJSON(r)
 
 	if err != nil {
 		return nil, err
@@ -172,37 +170,37 @@ func IsAccountNotFoundErr(err error) bool {
 	return found
 }
 
-func transformGetAccountsResponse(r common.Response) ([]*Account, error) {
-	var al []*Account
+func accountsFromJSON(r common.Response) ([]*Account, error) {
+	accountList := make([]*Account, len(r.Response.Items))
 
-	type getAccountResponse struct {
+	type accountJSON struct {
 		Name               string `json:"name"`
 		AccountID          string `json:"accountId"`
 		OrganizationID     string `json:"organizationId"`
 		ProviderExternalID string `json:"providerExternalId"`
 	}
 
-	for _, data := range r.Response.Items {
+	for i, data := range r.Response.Items {
 
-		var acc getAccountResponse
+		var acc accountJSON
 		err := json.Unmarshal(data, &acc)
 		if err != nil {
-			return nil, err
+			return accountList, err
 		}
 
-		al = append(al, &Account{
+		accountList[i] = &Account{
 			ID:                 acc.AccountID,
 			Name:               acc.Name,
 			OrganizationID:     acc.OrganizationID,
 			ProviderExternalID: acc.ProviderExternalID,
-		})
+		}
 
 	}
-	return al, nil
+	return accountList, nil
 }
 
-func filterAccountByID(id string, al []*Account) (*Account, error) {
-	for _, a := range al {
+func filterAccountByID(id string, accountList []*Account) (*Account, error) {
+	for _, a := range accountList {
 		log.Printf("Checking %v with %v\n", a.ID, id)
 		if a.ID == id {
 			return a, nil

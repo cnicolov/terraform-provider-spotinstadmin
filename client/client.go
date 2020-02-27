@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -78,13 +77,11 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 
 	b, err := ioutil.ReadAll(resp.Body)
 
-	log.Println(string(b))
-
 	if err != nil {
 		return nil, err
 	}
 
-	err = json.Unmarshal(b, &v)
+	err = json.Unmarshal(b, v)
 	if err != nil {
 		return nil, err
 	}

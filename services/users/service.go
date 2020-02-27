@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -95,35 +96,41 @@ func (us *Service) Create(username, description, accountID string) (*User, error
 
 	var responseBody response
 
-	resp, err := us.httpClient.Do(req, &responseBody)
+	_, err = us.httpClient.Do(req, &responseBody)
 	if err != nil {
 		return nil, err
 	}
-
-	defer resp.Body.Close()
 
 	if len(responseBody.Items) == 0 {
 		return nil, errors.New("Cannot provision user")
 	}
 
-	var result createProgrammaticUserRequest
+	var result createProgrammaticUserResponse
 
 	err = json.Unmarshal(responseBody.Items[0], &result)
 	if err != nil {
 		return nil, err
 	}
 
-	return us.Get(username, accountID)
+	log.Printf("IN CREATE: %v\n", accountID)
+	user, err := us.Get(username, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	user.AccessToken = result.Token
+	return user, nil
 }
 
 // Get ...
 func (us *Service) Get(username, accountID string) (*User, error) {
 
-	b := make(map[string]interface{})
-	req, err := us.httpClient.NewRequest(http.MethodGet, "/setup/shared/accountUserMapping", &b)
+	req, err := us.httpClient.NewRequest(http.MethodGet, "/setup/shared/accountUserMapping", nil)
 	if err != nil {
 		return nil, err
 	}
+
+	log.Printf("IN GET: %v\n", accountID)
 
 	u, _ := url.ParseQuery(req.URL.RawQuery)
 	u.Add("spotinstAccountId", accountID)
@@ -132,36 +139,47 @@ func (us *Service) Get(username, accountID string) (*User, error) {
 
 	var r response
 
-	resp, err := us.httpClient.Do(req, &r)
+	_, err = us.httpClient.Do(req, &r)
 
 	if err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	userList, err := usersFromJSON(r)
 
-	if len(r.Items) == 0 {
-		return nil, errors.New("Cannot get user")
+	if err != nil {
+		return nil, err
 	}
 
-	var ul []*User
+	if len(userList) == 0 {
+		return nil, errors.New("Cannot get users")
+	}
 
-	for _, jsonData := range r.Items {
+	return filterUserByName(username, userList)
+}
+
+func usersFromJSON(r response) ([]*User, error) {
+	userList := make([]*User, len(r.Items))
+
+	for i, jsonData := range r.Items {
 		var obj User
-		err = json.Unmarshal(jsonData, &obj)
+		err := json.Unmarshal(jsonData, &obj)
 		if err != nil {
 			return nil, err
 		}
-		ul = append(ul, &obj)
+		userList[i] = &obj
 	}
 
-	return filterUserByName(username, ul)
+	return userList, nil
+
 }
 
 func filterUserByName(username string, ul []*User) (*User, error) {
 	for _, u := range ul {
+
+		log.Printf("%v\n", u)
+		log.Printf("Checking %v with %v\n", u.CoreUser.FirstName, username)
 		if strings.ToLower(u.CoreUser.FirstName) == username {
-			fmt.Printf("%v\n", u)
 			return u, nil
 		}
 	}

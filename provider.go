@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/cnicolov/terraform-provider-spotinstadmin/services/accounts"
+	"github.com/cnicolov/terraform-provider-spotinstadmin/services/users"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
@@ -29,8 +30,8 @@ func Provider() *schema.Provider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"spotinstadmin_account": resourceAccount(),
-			//			"spotinstadmin_programmatic_user": resourceProgrammaticUser(),
+			"spotinstadmin_account":           resourceAccount(),
+			"spotinstadmin_programmatic_user": resourceProgrammaticUser(),
 		},
 		ConfigureFunc: providerConfigureFunc,
 	}
@@ -39,23 +40,21 @@ func Provider() *schema.Provider {
 // Meta ...
 type Meta struct {
 	accountsService *accounts.Service
-	// UserService *UserService
+	usersService    *users.Service
 }
 
 func providerConfigureFunc(d *schema.ResourceData) (interface{}, error) {
 	apiToken := d.Get("token").(string)
-	// username := d.Get("email").(string)
-	// 	password := d.Get("password").(string)
-	// consoleToken, err := users.GetConsoleToken(username, password)
+	username := d.Get("email").(string)
+	password := d.Get("password").(string)
+	consoleToken, err := users.GetConsoleToken(username, password)
 
-	// log.Println(consoleToken)
-
-	// if err != nil {
-	// 	return nil, err
-	// }
+	if err != nil {
+		return nil, err
+	}
 
 	return &Meta{
 		accountsService: accounts.New(apiToken),
-		// UserService:    client.NewUserService(consoleToken),
+		usersService:    users.New(consoleToken),
 	}, nil
 }
