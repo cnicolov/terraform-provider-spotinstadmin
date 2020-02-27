@@ -24,7 +24,7 @@ func New(baseURLString, token string) *Client {
 	}
 
 	client := &http.Client{
-		Timeout:   time.Second * 5,
+		Timeout:   time.Second * 30,
 		Transport: http.DefaultTransport,
 	}
 
@@ -81,9 +81,11 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 		return nil, err
 	}
 
-	err = json.Unmarshal(b, v)
-	if err != nil {
-		return nil, err
+	if v != nil {
+		err = json.Unmarshal(b, v)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return resp, err
 }

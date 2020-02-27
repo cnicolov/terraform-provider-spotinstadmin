@@ -192,6 +192,32 @@ func (us *Service) Update(u *User) (*User, error) {
 }
 
 // Delete ...
-func (us *Service) Delete(userID string) error {
+func (us *Service) Delete(username, accountID string) error {
+	user, err := us.Get(username, accountID)
+	if err != nil {
+		return err
+	}
+
+	log.Println(user.CoreUser.ID)
+	req, err := us.httpClient.NewRequest(http.MethodDelete, fmt.Sprintf("/setup/shared/ums/user/%v", user.CoreUser.ID), nil)
+
+	u, _ := url.ParseQuery(req.URL.RawQuery)
+
+	u.Add("accountId", accountID)
+
+	req.URL.RawQuery = u.Encode()
+
+	resp, err := us.httpClient.Do(req, nil)
+
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	log.Printf("RESPONSE !!!!!!!!!!!! %#v", resp)
+
+	if resp.StatusCode > 399 {
+		return errors.New("Cannot delete user: " + user.CoreUser.FirstName)
+	}
 	return nil
 }

@@ -97,5 +97,8 @@ func resourceProgrammaticUserCreate(d *schema.ResourceData, m interface{}) error
 }
 
 func resourceProgrammaticUserDelete(d *schema.ResourceData, m interface{}) error {
-	return nil
+	usersService := m.(*Meta).usersService
+	username := d.Get("name").(string)
+	accountID := d.Get("account_id").(string)
+	return usersService.Delete(username, accountID)
 }
