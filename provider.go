@@ -10,28 +10,28 @@ import (
 func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
-			"token": &schema.Schema{
+			providerTokenAttrKey: &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
-				DefaultFunc: schema.EnvDefaultFunc("SPOTINST_TOKEN", nil),
+				DefaultFunc: schema.EnvDefaultFunc(envSpotinstTokenKey, nil),
 			},
-			"email": &schema.Schema{
+			providerEmailAttrKey: &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
-				DefaultFunc: schema.EnvDefaultFunc("SPOTINST_EMAIL", nil),
+				DefaultFunc: schema.EnvDefaultFunc(envSpotinstEmailKey, nil),
 			},
-			"password": &schema.Schema{
+			providerPasswordAttrKey: &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
-				DefaultFunc: schema.EnvDefaultFunc("SPOTINST_PASSWORD", nil),
+				DefaultFunc: schema.EnvDefaultFunc(envSpotinstPasswordKey, nil),
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"spotinstadmin_account":           resourceAccount(),
-			"spotinstadmin_programmatic_user": resourceProgrammaticUser(),
+			accountResourceName:          resourceAccount(),
+			programmaticUserResourceName: resourceProgrammaticUser(),
 		},
 		ConfigureFunc: providerConfigureFunc,
 	}
@@ -44,9 +44,9 @@ type Meta struct {
 }
 
 func providerConfigureFunc(d *schema.ResourceData) (interface{}, error) {
-	apiToken := d.Get("token").(string)
-	username := d.Get("email").(string)
-	password := d.Get("password").(string)
+	apiToken := d.Get(providerTokenAttrKey).(string)
+	username := d.Get(providerEmailAttrKey).(string)
+	password := d.Get(providerPasswordAttrKey).(string)
 	consoleToken, err := users.GetConsoleToken(username, password)
 
 	if err != nil {

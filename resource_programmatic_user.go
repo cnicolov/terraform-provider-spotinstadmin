@@ -10,23 +10,23 @@ import (
 func resourceProgrammaticUser() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
-			"account_id": &schema.Schema{
+			userResourceAccountIDAttrKey: &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-			"name": &schema.Schema{
+			userResourceNameAttrKey: &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-			"description": &schema.Schema{
+			userResourceDescriptionAttrKey: &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
 				Default:  "",
 			},
-			"access_token": &schema.Schema{
+			userResourceAccessTokenAttrKey: &schema.Schema{
 				Type:      schema.TypeString,
 				Computed:  true,
 				Sensitive: true,
@@ -43,7 +43,7 @@ func resourceProgrammaticUser() *schema.Resource {
 func resourceProgrammaticUserRead(d *schema.ResourceData, m interface{}) error {
 	usersService := m.(*Meta).usersService
 
-	accountID := d.Get("account_id").(string)
+	accountID := d.Get(userResourceAccountIDAttrKey).(string)
 	log.Println(accountID)
 	userName := d.Id()
 
@@ -61,7 +61,7 @@ func resourceProgrammaticUserRead(d *schema.ResourceData, m interface{}) error {
 
 	if actualName == d.Id() {
 		d.SetId(actualName)
-		return d.Set("account_id", obj.AccountID)
+		return d.Set(userResourceAccountIDAttrKey, obj.AccountID)
 	}
 
 	d.SetId("")
@@ -73,9 +73,9 @@ func resourceProgrammaticUserRead(d *schema.ResourceData, m interface{}) error {
 func resourceProgrammaticUserCreate(d *schema.ResourceData, m interface{}) error {
 	usersService := m.(*Meta).usersService
 
-	username := d.Get("name").(string)
-	description := d.Get("description").(string)
-	accountID := d.Get("account_id").(string)
+	username := d.Get(userResourceNameAttrKey).(string)
+	description := d.Get(userResourceDescriptionAttrKey).(string)
+	accountID := d.Get(userResourceAccountIDAttrKey).(string)
 
 	log.Printf("IN_RESOURCE_CREATE: %v\n", accountID)
 	user, err := usersService.Create(username, description, accountID)
@@ -85,11 +85,11 @@ func resourceProgrammaticUserCreate(d *schema.ResourceData, m interface{}) error
 	}
 
 	d.SetId(strings.ToLower(user.CoreUser.FirstName))
-	if err := d.Set("access_token", user.AccessToken); err != nil {
+	if err := d.Set(userResourceAccessTokenAttrKey, user.AccessToken); err != nil {
 		return err
 	}
 
-	if err := d.Set("account_id", accountID); err != nil {
+	if err := d.Set(userResourceAccountIDAttrKey, accountID); err != nil {
 		return err
 	}
 
@@ -98,7 +98,7 @@ func resourceProgrammaticUserCreate(d *schema.ResourceData, m interface{}) error
 
 func resourceProgrammaticUserDelete(d *schema.ResourceData, m interface{}) error {
 	usersService := m.(*Meta).usersService
-	username := d.Get("name").(string)
-	accountID := d.Get("account_id").(string)
+	username := d.Get(userResourceNameAttrKey).(string)
+	accountID := d.Get(userResourceAccountIDAttrKey).(string)
 	return usersService.Delete(username, accountID)
 }

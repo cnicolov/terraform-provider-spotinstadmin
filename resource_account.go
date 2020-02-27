@@ -13,18 +13,18 @@ func resourceAccount() *schema.Resource {
 		Delete: resourceAccountDelete,
 
 		Schema: map[string]*schema.Schema{
-			"name": &schema.Schema{
+			accountResourceNameAttrKey: &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
 
-			"aws_role_arn": {
+			accountResourceRoleArnAttrKey: {
 				Type:        schema.TypeString,
 				Description: "AWS Role arn to assume",
 				Required:    true,
 			},
-			"aws_external_id": {
+			accountResourceExternalIDAttrKey: {
 				Type:        schema.TypeString,
 				Description: "ExternalID to use",
 				Required:    true,
@@ -35,9 +35,9 @@ func resourceAccount() *schema.Resource {
 
 func resourceAccountCreate(d *schema.ResourceData, m interface{}) error {
 	accountsService := m.(*Meta).accountsService
-	name := d.Get("name").(string)
-	iamRole := d.Get("aws_role_arn").(string)
-	externalID := d.Get("aws_external_id").(string)
+	name := d.Get(accountResourceNameAttrKey).(string)
+	iamRole := d.Get(accountResourceRoleArnAttrKey).(string)
+	externalID := d.Get(accountResourceExternalIDAttrKey).(string)
 
 	out, err := accountsService.Create(name, iamRole, externalID)
 
@@ -63,7 +63,7 @@ func resourceAccountRead(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	d.Set("name", obj.Name)
+	d.Set(accountResourceNameAttrKey, obj.Name)
 	d.Set("organization_id", obj.OrganizationID)
 	d.Set("provider_external_id", obj.ProviderExternalID)
 
