@@ -1,0 +1,17 @@
+version: 2
+updates:
+- package-ecosystem: gomod
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "03:00"
+  open-pull-requests-limit: 10
+  reviewers:
+  - cnicolov
+  ignore:
+  - dependency-name: github.com/hashicorp/terraform-plugin-sdk
+    versions:
+    - 1.16.0
+    - 1.16.1
+    - 1.17.0
+    - 1.17.1
