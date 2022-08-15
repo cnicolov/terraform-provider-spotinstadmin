@@ -10,7 +10,7 @@ import (
 	"net/http"
 )
 
-const usersServiceSignInURL = usersServiceBaseURL + "/auth/signIn"
+const usersServiceSignInURL = usersServiceBaseURL + "/api/auth/signIn"
 
 type getConsoleTokenRequest struct {
 	Email    string `json:"email"`

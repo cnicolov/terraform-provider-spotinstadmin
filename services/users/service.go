@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 
-	"github.com/cnicolov/terraform-provider-spotinstadmin/client"
+	"github.com/kinvey/terraform-provider-spotinstadmin/client"
 )
 
 const (
@@ -29,42 +28,26 @@ func New(token string) *Service {
 	}
 }
 
-// User ...
-// {
-// 	"createdAt": "2020-02-26T12:23:57.000Z",
-// 	"updatedAt": "2020-02-26T12:23:57.000Z",
-// 	"deletedAt": null,
-// 	"id": 181108,
-// 	"roleBitMask": 2,
-// 	"permissionStrategy": "ROLE_BASED",
-// 	"alias": "Progress Software",
-// 	"coreUser": {
-// 		"id": 25826,
-// 		"email": "b827f1e9-42ca-4bc2-a386-1d437e855253@ProgressSoftware.com",
-// 		"firstName": "Bla",
-// 		"lastName": null,
-// 		"type": "programmatic"
-// 	},
-// 	"userId": 25826,
-// 	"accountId": "act-6db0dbf7",
-// 	"organizationId": 606079874257
-// },
 type User struct {
-	ID          int    `json:"userId"`
-	AccessToken string `json:"accessToken"`
-	Name        string
-	Description string `json:"description"`
-	CoreUser    struct {
-		ID        int
-		FirstName string `json:"firstName"`
-		Type      string
-	} `json:"coreUser"`
-	AccountID string `json:"accountId"`
+	ID          string  `json:"userId"`
+	UserName    string `json:"username"`
+	Type        string `json:"type"`
 }
 
+type UserDetails struct {
+	ID          string `json:"userId"`
+	AccessToken string `json:"accessToken"`
+	UserName    string `json:"username"`
+	Description string `json:"description"`
+}
+
+type createProgrammaticUserAccount struct{
+	ID   string   `json:"id"`
+	Role string   `json:"role"`
+} 
+
 type createProgrammaticUserRequest struct {
-	AccountRole        int      `json:"accountRole"`
-	Accounts           []string `json:"accounts"`
+	Accounts           []createProgrammaticUserAccount `json:"accounts"`
 	Description        string   `json:"description"`
 	Name               string   `json:"name"`
 	PermissionStrategy string   `json:"permissionStrategy"`
@@ -73,23 +56,20 @@ type createProgrammaticUserRequest struct {
 
 type createProgrammaticUserResponse struct {
 	Token string
-	Type  string
 	Name  string
+	ID  string
 }
 
 // Create ..
-func (us *Service) Create(username, description, accountID string) (*User, error) {
+func (us *Service) Create(username, description, accountID string) (*UserDetails, error) {
 
 	b := &createProgrammaticUserRequest{
-		AccountRole:        2,
-		Accounts:           []string{accountID},
+		Accounts:           []createProgrammaticUserAccount{{ID: accountID, Role: "editor"}},
 		Description:        description,
 		Name:               username,
-		PermissionStrategy: "ROLE_BASED",
-		PolicyIds:          []int{},
 	}
 
-	req, err := us.httpClient.NewRequest(http.MethodPost, "/setup/shared/ums/programmaticUser", b)
+	req, err := us.httpClient.NewRequest(http.MethodPost, "/setup/user/programmatic", b)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +92,7 @@ func (us *Service) Create(username, description, accountID string) (*User, error
 		return nil, err
 	}
 
-	log.Printf("IN CREATE: %v\n", accountID)
+	log.Printf("[INFO] IN CREATE: %v\n", accountID)
 	user, err := us.Get(username, accountID)
 	if err != nil {
 		return nil, err
@@ -123,19 +103,14 @@ func (us *Service) Create(username, description, accountID string) (*User, error
 }
 
 // Get ...
-func (us *Service) Get(username, accountID string) (*User, error) {
+func (us *Service) Get(username, accountID string) (*UserDetails, error) {
 
-	req, err := us.httpClient.NewRequest(http.MethodGet, "/setup/shared/accountUserMapping", nil)
+	req, err := us.httpClient.NewRequest(http.MethodGet, "/setup/organization/user", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Printf("IN GET: %v\n", accountID)
-
-	u, _ := url.ParseQuery(req.URL.RawQuery)
-	u.Add("spotinstAccountId", accountID)
-	u.Add("shouldIncludeUser", "true")
-	req.URL.RawQuery = u.Encode()
+	log.Printf("[INFO] IN GET: %v\n", accountID)
 
 	var r response
 
@@ -155,7 +130,15 @@ func (us *Service) Get(username, accountID string) (*User, error) {
 		return nil, errors.New("Cannot get users")
 	}
 
-	return filterUserByName(username, userList)
+	user, err := filterUserByName(username, userList)
+
+	if err != nil {
+		return nil, err
+	}
+
+	userDetails, err := us.GetDetails(user.ID, accountID)
+
+	return userDetails, nil
 }
 
 func usersFromJSON(r response) ([]*User, error) {
@@ -177,13 +160,43 @@ func usersFromJSON(r response) ([]*User, error) {
 func filterUserByName(username string, ul []*User) (*User, error) {
 	for _, u := range ul {
 
-		log.Printf("%v\n", u)
-		log.Printf("Checking %v with %v\n", u.CoreUser.FirstName, username)
-		if strings.ToLower(u.CoreUser.FirstName) == username {
+		log.Printf("[INFO] %v\n", u)
+		log.Printf("[INFO] Checking %v with %v\n", u.UserName, username)
+		if strings.ToLower(u.UserName) == username {
 			return u, nil
 		}
 	}
 	return nil, fmt.Errorf("User %s not found", username)
+}
+
+func (us *Service) GetDetails(userId, accountID string) (*UserDetails, error) {
+	reqString := fmt.Sprintf("/setup/user/%s", userId)
+	req, err := us.httpClient.NewRequest(http.MethodGet, reqString, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var r response
+
+	_, err = us.httpClient.Do(req, &r)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(r.Items) == 0 {
+		return nil, errors.New("Cannot get user")
+	}
+	
+	var user *UserDetails
+	err = json.Unmarshal(r.Items[0], &user)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 // Update ...
@@ -198,14 +211,8 @@ func (us *Service) Delete(username, accountID string) error {
 		return err
 	}
 
-	log.Println(user.CoreUser.ID)
-	req, err := us.httpClient.NewRequest(http.MethodDelete, fmt.Sprintf("/setup/shared/ums/user/%v", user.CoreUser.ID), nil)
-
-	u, _ := url.ParseQuery(req.URL.RawQuery)
-
-	u.Add("accountId", accountID)
-
-	req.URL.RawQuery = u.Encode()
+	log.Println(user.ID)
+	req, err := us.httpClient.NewRequest(http.MethodDelete, fmt.Sprintf("/setup/user/%v", user.ID), nil)
 
 	resp, err := us.httpClient.Do(req, nil)
 
@@ -214,10 +221,10 @@ func (us *Service) Delete(username, accountID string) error {
 		return err
 	}
 
-	log.Printf("RESPONSE !!!!!!!!!!!! %#v", resp)
+	log.Printf("[INFO] RESPONSE !!!!!!!!!!!! %#v", resp)
 
 	if resp.StatusCode > 399 {
-		return errors.New("Cannot delete user: " + user.CoreUser.FirstName)
+		return errors.New("Cannot delete user: " + user.UserName)
 	}
 	return nil
 }

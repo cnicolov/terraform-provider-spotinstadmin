@@ -1,28 +1,28 @@
 package main
 
 import (
-	"github.com/cnicolov/terraform-provider-spotinstadmin/services/accounts"
-	"github.com/cnicolov/terraform-provider-spotinstadmin/services/users"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/kinvey/terraform-provider-spotinstadmin/services/accounts"
+	"github.com/kinvey/terraform-provider-spotinstadmin/services/users"
 )
 
 // Provider ...
 func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
-			providerTokenAttrKey: &schema.Schema{
+			providerTokenAttrKey: {
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
 				DefaultFunc: schema.EnvDefaultFunc(envSpotinstTokenKey, nil),
 			},
-			providerEmailAttrKey: &schema.Schema{
+			providerEmailAttrKey: {
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
 				DefaultFunc: schema.EnvDefaultFunc(envSpotinstEmailKey, nil),
 			},
-			providerPasswordAttrKey: &schema.Schema{
+			providerPasswordAttrKey: {
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
@@ -31,6 +31,7 @@ func Provider() *schema.Provider {
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			accountResourceName:          resourceAccount(),
+			linkAccountResourceName:      resourceAccountAWSLink(),
 			programmaticUserResourceName: resourceProgrammaticUser(),
 		},
 		ConfigureFunc: providerConfigureFunc,
@@ -39,7 +40,7 @@ func Provider() *schema.Provider {
 
 // Meta ...
 type Meta struct {
-	accountsService *accounts.Service
+	accountsService *accounts.Service 
 	usersService    *users.Service
 }
 

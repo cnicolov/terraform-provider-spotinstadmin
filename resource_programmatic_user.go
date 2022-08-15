@@ -47,7 +47,7 @@ func resourceProgrammaticUserRead(d *schema.ResourceData, m interface{}) error {
 	log.Println(accountID)
 	userName := d.Id()
 
-	log.Printf("IN_RESOURCE_READ: %v-%v\n", userName, accountID)
+	log.Printf("[TRACE] IN_RESOURCE_READ: %v-%v\n", userName, accountID)
 	obj, err := usersService.Get(userName, accountID)
 
 	if err != nil {
@@ -57,11 +57,11 @@ func resourceProgrammaticUserRead(d *schema.ResourceData, m interface{}) error {
 
 	log.Println(obj)
 
-	actualName := strings.ToLower(obj.CoreUser.FirstName)
+	actualName := strings.ToLower(obj.ID)
 
 	if actualName == d.Id() {
 		d.SetId(actualName)
-		return d.Set(userResourceAccountIDAttrKey, obj.AccountID)
+		return d.Set(userResourceAccountIDAttrKey, accountID)
 	}
 
 	d.SetId("")
@@ -77,14 +77,14 @@ func resourceProgrammaticUserCreate(d *schema.ResourceData, m interface{}) error
 	description := d.Get(userResourceDescriptionAttrKey).(string)
 	accountID := d.Get(userResourceAccountIDAttrKey).(string)
 
-	log.Printf("IN_RESOURCE_CREATE: %v\n", accountID)
+	log.Printf("[INFO] IN_RESOURCE_CREATE: %v\n", accountID)
 	user, err := usersService.Create(username, description, accountID)
 
 	if err != nil {
 		return err
 	}
 
-	d.SetId(strings.ToLower(user.CoreUser.FirstName))
+	d.SetId(strings.ToLower(user.UserName))
 	if err := d.Set(userResourceAccessTokenAttrKey, user.AccessToken); err != nil {
 		return err
 	}

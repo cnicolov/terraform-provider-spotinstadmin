@@ -15,13 +15,22 @@ const (
 const (
 	providerName                 = "spotinstadmin"
 	accountResourceName          = providerName + "_account"
+	linkAccountResourceName      = providerName + "_account_aws_link"
 	programmaticUserResourceName = providerName + "_programmatic_user"
 )
 
 const (
-	accountResourceNameAttrKey       = "name"
-	accountResourceRoleArnAttrKey    = "aws_role_arn"
-	accountResourceExternalIDAttrKey = "aws_external_id"
+	accountResourceNameAttrKey               = "name"
+	accountResourceExternalIdAttrKey         = "external_id"
+	accountResourceProviderExternalIdAttrKey = "provider_external_id"
+	accountResourceOrganizationIdAttrKey     = "organization_id"
+)
+
+const (
+	linkAccountResourceAccountIDAttrKey          = "account_id"
+	linkAccountResourceRoleArnAttrKey            = "aws_role_arn"
+	linkAccountResourceProviderExternalIdAttrKey = "provider_external_id"
+	linkAccountResourceOrganizationIdAttrKey     = "organization_id"
 )
 
 const (
