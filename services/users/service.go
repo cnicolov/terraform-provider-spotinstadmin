@@ -97,8 +97,7 @@ func (us *Service) Create(username, description, accountID string) (*UserDetails
 		return nil, err
 	}
 
-	log.Printf("[TRACE] IN CREATE: %v\n", accountID)
-	user, err := us.Get(username, accountID)
+	user, err := us.Get(username)
 	if err != nil {
 		return nil, err
 	}
@@ -108,14 +107,12 @@ func (us *Service) Create(username, description, accountID string) (*UserDetails
 }
 
 // Get ...
-func (us *Service) Get(username, accountID string) (*UserDetails, error) {
+func (us *Service) Get(username string) (*UserDetails, error) {
 
 	req, err := us.httpClient.NewRequest(http.MethodGet, "/setup/organization/user", nil)
 	if err != nil {
 		return nil, err
 	}
-
-	log.Printf("[TRACE] IN GET: %v\n", accountID)
 
 	var r common.Response
 
@@ -135,13 +132,12 @@ func (us *Service) Get(username, accountID string) (*UserDetails, error) {
 		return nil, errors.New("Cannot get users")
 	}
 
-	user, err := filterUserByName(username, userList)
+	user := filterUserByName(username, userList)
 
-	if err != nil {
-		return nil, err
+	if user == nil { 
+		return nil, nil 
 	}
-
-	userDetails, err := us.GetDetails(user.ID, accountID)
+	userDetails, err := us.GetDetails(user.ID)
 
 	return userDetails, nil
 }
@@ -162,19 +158,19 @@ func usersFromJSON(r common.Response) ([]*User, error) {
 
 }
 
-func filterUserByName(username string, ul []*User) (*User, error) {
+func filterUserByName(username string, ul []*User) (*User) {
 	for _, u := range ul {
 
 		log.Printf("[TRACE] %v\n", u)
 		log.Printf("[TRACE] Checking %v with %v\n", u.UserName, username)
 		if strings.ToLower(u.UserName) == username {
-			return u, nil
+			return u
 		}
 	}
-	return nil, fmt.Errorf("User %s not found", username)
+	return nil
 }
 
-func (us *Service) GetDetails(userId, accountID string) (*UserDetails, error) {
+func (us *Service) GetDetails(userId string) (*UserDetails, error) {
 	reqString := fmt.Sprintf("/setup/user/%s", userId)
 	req, err := us.httpClient.NewRequest(http.MethodGet, reqString, nil)
 
@@ -210,8 +206,8 @@ func (us *Service) Update(u *User) (*User, error) {
 }
 
 // Delete ...
-func (us *Service) Delete(username, accountID string) error {
-	user, err := us.Get(username, accountID)
+func (us *Service) Delete(username string) error {
+	user, err := us.Get(username)
 	if err != nil {
 		return err
 	}

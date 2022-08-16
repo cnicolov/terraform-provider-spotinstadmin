@@ -48,13 +48,17 @@ func resourceProgrammaticUserRead(d *schema.ResourceData, m interface{}) error {
 	userName := d.Id()
 
 	log.Printf("[TRACE] IN_RESOURCE_READ: %v-%v\n", userName, accountID)
-	obj, err := usersService.Get(userName, accountID)
+	obj, err := usersService.Get(userName)
 
 	if err != nil {
 		d.SetId("")
 		return err
 	}
 
+	if obj == nil {
+		d.SetId("")
+		return nil
+	}
 	log.Println(obj)
 
 	actualName := strings.ToLower(obj.UserName)
@@ -99,6 +103,5 @@ func resourceProgrammaticUserCreate(d *schema.ResourceData, m interface{}) error
 func resourceProgrammaticUserDelete(d *schema.ResourceData, m interface{}) error {
 	usersService := m.(*Meta).usersService
 	username := d.Get(userResourceNameAttrKey).(string)
-	accountID := d.Get(userResourceAccountIDAttrKey).(string)
-	return usersService.Delete(username, accountID)
+	return usersService.Delete(username)
 }
