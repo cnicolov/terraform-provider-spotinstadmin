@@ -46,16 +46,9 @@ type Meta struct {
 
 func providerConfigureFunc(d *schema.ResourceData) (interface{}, error) {
 	apiToken := d.Get(providerTokenAttrKey).(string)
-	username := d.Get(providerEmailAttrKey).(string)
-	password := d.Get(providerPasswordAttrKey).(string)
-	consoleToken, err := users.GetConsoleToken(username, password)
-
-	if err != nil {
-		return nil, err
-	}
 
 	return &Meta{
 		accountsService: accounts.New(apiToken),
-		usersService:    users.New(consoleToken),
+		usersService:    users.New(apiToken),
 	}, nil
 }

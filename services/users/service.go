@@ -9,10 +9,11 @@ import (
 	"strings"
 
 	"github.com/kinvey/terraform-provider-spotinstadmin/client"
+	"github.com/kinvey/terraform-provider-spotinstadmin/client/common"
 )
 
 const (
-	usersServiceBaseURL = "https://console.spotinst.com"
+	usersServiceBaseURL = "https://api.spotinst.io"
 	emptyString         = ``
 )
 
@@ -29,7 +30,7 @@ func New(token string) *Service {
 }
 
 type User struct {
-	ID          string  `json:"userId"`
+	ID          string `json:"userId"`
 	UserName    string `json:"username"`
 	Type        string `json:"type"`
 }
@@ -50,14 +51,12 @@ type createProgrammaticUserRequest struct {
 	Accounts           []createProgrammaticUserAccount `json:"accounts"`
 	Description        string   `json:"description"`
 	Name               string   `json:"name"`
-	PermissionStrategy string   `json:"permissionStrategy"`
-	PolicyIds          []int    `json:"policyIds"`
 }
 
 type createProgrammaticUserResponse struct {
-	Token string
-	Name  string
-	ID  string
+	Token  string `json:"token"`
+	Name   string `json:"name"`
+	ID     string `json:"id"`
 }
 
 // Create ..
@@ -68,31 +67,37 @@ func (us *Service) Create(username, description, accountID string) (*UserDetails
 		Description:        description,
 		Name:               username,
 	}
-
+    
 	req, err := us.httpClient.NewRequest(http.MethodPost, "/setup/user/programmatic", b)
 	if err != nil {
 		return nil, err
 	}
 
-	var responseBody response
+	var v common.Response
 
-	_, err = us.httpClient.Do(req, &responseBody)
+	_, err = us.httpClient.Do(req, &v)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(responseBody.Items) == 0 {
-		return nil, errors.New("Cannot provision user")
+	if len(v.Response.Errors) > 0 {
+		return nil, errors.New(v.Response.Errors[0].Message)
+	}
+	if len(v.Response.Items) == 0 {
+		r, e := json.Marshal(b)
+		rr, er:= json.Marshal(v)
+		if e!= nil || er != nil { return nil, errors.New("Cannot provision user")} 
+		return nil, errors.New(fmt.Sprintf("Cannot provision user: %#v %#v", string(r), string(rr)))
 	}
 
 	var result createProgrammaticUserResponse
 
-	err = json.Unmarshal(responseBody.Items[0], &result)
+	err = json.Unmarshal(v.Response.Items[0], &result)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Printf("[INFO] IN CREATE: %v\n", accountID)
+	log.Printf("[TRACE] IN CREATE: %v\n", accountID)
 	user, err := us.Get(username, accountID)
 	if err != nil {
 		return nil, err
@@ -110,9 +115,9 @@ func (us *Service) Get(username, accountID string) (*UserDetails, error) {
 		return nil, err
 	}
 
-	log.Printf("[INFO] IN GET: %v\n", accountID)
+	log.Printf("[TRACE] IN GET: %v\n", accountID)
 
-	var r response
+	var r common.Response
 
 	_, err = us.httpClient.Do(req, &r)
 
@@ -141,10 +146,10 @@ func (us *Service) Get(username, accountID string) (*UserDetails, error) {
 	return userDetails, nil
 }
 
-func usersFromJSON(r response) ([]*User, error) {
-	userList := make([]*User, len(r.Items))
+func usersFromJSON(r common.Response) ([]*User, error) {
+	userList := make([]*User, len(r.Response.Items))
 
-	for i, jsonData := range r.Items {
+	for i, jsonData := range r.Response.Items {
 		var obj User
 		err := json.Unmarshal(jsonData, &obj)
 		if err != nil {
@@ -160,8 +165,8 @@ func usersFromJSON(r response) ([]*User, error) {
 func filterUserByName(username string, ul []*User) (*User, error) {
 	for _, u := range ul {
 
-		log.Printf("[INFO] %v\n", u)
-		log.Printf("[INFO] Checking %v with %v\n", u.UserName, username)
+		log.Printf("[TRACE] %v\n", u)
+		log.Printf("[TRACE] Checking %v with %v\n", u.UserName, username)
 		if strings.ToLower(u.UserName) == username {
 			return u, nil
 		}
@@ -177,7 +182,7 @@ func (us *Service) GetDetails(userId, accountID string) (*UserDetails, error) {
 		return nil, err
 	}
 
-	var r response
+	var r common.Response
 
 	_, err = us.httpClient.Do(req, &r)
 
@@ -185,12 +190,12 @@ func (us *Service) GetDetails(userId, accountID string) (*UserDetails, error) {
 		return nil, err
 	}
 
-	if len(r.Items) == 0 {
+	if len(r.Response.Items) == 0 {
 		return nil, errors.New("Cannot get user")
 	}
 	
 	var user *UserDetails
-	err = json.Unmarshal(r.Items[0], &user)
+	err = json.Unmarshal(r.Response.Items[0], &user)
 
 	if err != nil {
 		return nil, err
@@ -221,7 +226,7 @@ func (us *Service) Delete(username, accountID string) error {
 		return err
 	}
 
-	log.Printf("[INFO] RESPONSE !!!!!!!!!!!! %#v", resp)
+	log.Printf("[TRACE] RESPONSE !!!!!!!!!!!! %#v", resp)
 
 	if resp.StatusCode > 399 {
 		return errors.New("Cannot delete user: " + user.UserName)

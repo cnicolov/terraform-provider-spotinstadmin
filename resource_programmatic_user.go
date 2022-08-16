@@ -10,23 +10,23 @@ import (
 func resourceProgrammaticUser() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
-			userResourceAccountIDAttrKey: &schema.Schema{
+			userResourceAccountIDAttrKey: {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-			userResourceNameAttrKey: &schema.Schema{
+			userResourceNameAttrKey: {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-			userResourceDescriptionAttrKey: &schema.Schema{
+			userResourceDescriptionAttrKey: {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
 				Default:  "",
 			},
-			userResourceAccessTokenAttrKey: &schema.Schema{
+			userResourceAccessTokenAttrKey: {
 				Type:      schema.TypeString,
 				Computed:  true,
 				Sensitive: true,
@@ -57,7 +57,7 @@ func resourceProgrammaticUserRead(d *schema.ResourceData, m interface{}) error {
 
 	log.Println(obj)
 
-	actualName := strings.ToLower(obj.ID)
+	actualName := strings.ToLower(obj.UserName)
 
 	if actualName == d.Id() {
 		d.SetId(actualName)
@@ -77,7 +77,7 @@ func resourceProgrammaticUserCreate(d *schema.ResourceData, m interface{}) error
 	description := d.Get(userResourceDescriptionAttrKey).(string)
 	accountID := d.Get(userResourceAccountIDAttrKey).(string)
 
-	log.Printf("[INFO] IN_RESOURCE_CREATE: %v\n", accountID)
+	log.Printf("[TRACE] IN_RESOURCE_CREATE: %v\n", accountID)
 	user, err := usersService.Create(username, description, accountID)
 
 	if err != nil {

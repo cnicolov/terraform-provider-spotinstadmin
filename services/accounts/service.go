@@ -62,7 +62,7 @@ func (as *Service) Create(name string) (*Account, error) {
 		"account": {"name": name},
 	}
 
-	log.Printf("[INFO] Making request %v\n", body)
+	log.Printf("[TRACE] Making request %v\n", body)
 	req, err := as.httpClient.NewRequest(http.MethodPost, "/setup/account", &body)
 
 	if err != nil {
@@ -103,7 +103,7 @@ func (as *Service) Create(name string) (*Account, error) {
 
 func (as *Service) generateExternalId(accountID string)(*ExternalID, error) {
 
-	log.Printf("[INFO] Generating ExternalID\n")
+	log.Printf("[TRACE] Generating ExternalID\n")
 	req, err := as.httpClient.NewRequest(http.MethodPost, "/setup/credentials/aws/externalId", nil)
 
 	if err != nil {
@@ -157,7 +157,7 @@ func (as *Service) Link(accountID, iamRole string) error {
 		return err
 	}
 
-	log.Printf("[INFO] %#v", req)
+	log.Printf("[TRACE] %#v", req)
 
 	var r common.Response
 
@@ -171,14 +171,14 @@ func (as *Service) Link(accountID, iamRole string) error {
 		return fmt.Errorf("Can't link accouts")
 	}
 
-	log.Printf("[INFO] %#v", r)
+	log.Printf("[TRACE] %#v", r)
 
 	return err
 }
 
 // Get returns account by id
 func (as *Service) Get(id string) (*Account, error) {
-	log.Printf("[INFO] Getting account %v\n", id)
+	log.Printf("[TRACE] Getting account %v\n", id)
 
 	req, err := as.httpClient.NewRequest(http.MethodGet, "/setup/account", nil)
 
@@ -252,7 +252,7 @@ func accountsFromJSON(r common.Response) ([]*Account, error) {
 
 func filterAccountByID(id string, accountList []*Account) (*Account, error) {
 	for _, a := range accountList {
-		log.Printf("[INFO] Checking %v with %v\n", a.ID, id)
+		log.Printf("[TRACE] Checking %v with %v\n", a.ID, id)
 		if a.ID == id {
 			return a, nil
 		}
