@@ -1,33 +1,35 @@
 package main
 
 import (
-	"github.com/cnicolov/terraform-provider-spotinstadmin/services/accounts"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/kinvey/terraform-provider-spotinstadmin/services/accounts"
 )
 
 func resourceAccount() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceAccountCreate,
 		Read:   resourceAccountRead,
-		Update: resourceAccountUpdate,
+		// Update: resourceAccountUpdate,
 		Delete: resourceAccountDelete,
 
 		Schema: map[string]*schema.Schema{
-			accountResourceNameAttrKey: &schema.Schema{
+			accountResourceNameAttrKey: {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-
-			accountResourceRoleArnAttrKey: {
-				Type:        schema.TypeString,
-				Description: "AWS Role arn to assume",
-				Required:    true,
+			accountResourceExternalIdAttrKey: {
+				Type:      schema.TypeString,
+				Computed:  true,
+				Sensitive: true,
 			},
-			accountResourceExternalIDAttrKey: {
-				Type:        schema.TypeString,
-				Description: "ExternalID to use",
-				Required:    true,
+			accountResourceProviderExternalIdAttrKey: {
+				Type:      schema.TypeString,
+				Computed:  true,
+			},
+			accountResourceOrganizationIdAttrKey: {
+				Type:      schema.TypeString,
+				Computed:  true,
 			},
 		},
 	}
@@ -36,10 +38,8 @@ func resourceAccount() *schema.Resource {
 func resourceAccountCreate(d *schema.ResourceData, m interface{}) error {
 	accountsService := m.(*Meta).accountsService
 	name := d.Get(accountResourceNameAttrKey).(string)
-	iamRole := d.Get(accountResourceRoleArnAttrKey).(string)
-	externalID := d.Get(accountResourceExternalIDAttrKey).(string)
 
-	out, err := accountsService.Create(name, iamRole, externalID)
+	out, err := accountsService.Create(name)
 
 	if err != nil {
 		return err
@@ -48,6 +48,7 @@ func resourceAccountCreate(d *schema.ResourceData, m interface{}) error {
 	d.SetId(out.ID)
 
 	d.Set("organization_id", out.OrganizationID)
+	d.Set(accountResourceExternalIdAttrKey, out.ExternalID)
 
 	return resourceAccountRead(d, m)
 }
@@ -64,8 +65,8 @@ func resourceAccountRead(d *schema.ResourceData, m interface{}) error {
 	}
 
 	d.Set(accountResourceNameAttrKey, obj.Name)
-	d.Set("organization_id", obj.OrganizationID)
-	d.Set("provider_external_id", obj.ProviderExternalID)
+	d.Set(accountResourceOrganizationIdAttrKey, obj.OrganizationID)
+	d.Set(accountResourceProviderExternalIdAttrKey, obj.ProviderExternalID)
 
 	return nil
 }

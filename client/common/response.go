@@ -1,6 +1,8 @@
 package common
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type Response struct {
 	Request struct {
@@ -10,6 +12,10 @@ type Response struct {
 	Response struct {
 		Errors []ResponseError   `json:"errors"`
 		Items  []json.RawMessage `json:"items"`
+		Status struct {
+			Code int             `json:"code"`
+			Message string       `json:"message"`
+		} `json:"status"`
 	} `json:"response"`
 }
 

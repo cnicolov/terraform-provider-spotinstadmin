@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/cnicolov/terraform-provider-spotinstadmin/client"
-	"github.com/cnicolov/terraform-provider-spotinstadmin/client/common"
+	"github.com/kinvey/terraform-provider-spotinstadmin/client"
+	"github.com/kinvey/terraform-provider-spotinstadmin/client/common"
 )
 
 const (
@@ -37,6 +37,12 @@ type Account struct {
 	Name               string `json:"name"`
 	OrganizationID     string `json:"organizationId"`
 	ProviderExternalID string `json:"providerExternalId,omitempty"`
+	ExternalID         string `json:"externalId,omitempty"`
+}
+
+type ExternalID struct {
+	ID         string `json:"externalId"`
+	Expiration string `json:"maxValidUntil"`
 }
 
 // AccountNotFoundError is raised when looking up account
@@ -50,13 +56,13 @@ func (a *AccountNotFoundError) Error() string {
 }
 
 // Create creates accoount in Spotinst
-func (as *Service) Create(name, iamRole, externalID string) (*Account, error) {
+func (as *Service) Create(name string) (*Account, error) {
 
 	body := map[string]map[string]string{
 		"account": {"name": name},
 	}
 
-	log.Printf("Making request %v\n", body)
+	log.Printf("[TRACE] Making request %v\n", body)
 	req, err := as.httpClient.NewRequest(http.MethodPost, "/setup/account", &body)
 
 	if err != nil {
@@ -83,20 +89,61 @@ func (as *Service) Create(name, iamRole, externalID string) (*Account, error) {
 
 	time.Sleep(time.Second * 5)
 
-	err = as.setupCloudCredentials(account.ID, iamRole, externalID)
+	externalId, err := as.generateExternalId(account.ID)
 
 	if err != nil {
 		_ = as.Delete(account.ID)
 		return nil, err
 	}
 
+	account.ExternalID = externalId.ID
+
 	return &account, nil
 }
 
-func (as *Service) setupCloudCredentials(accountID, iamRole, externalID string) error {
+func (as *Service) generateExternalId(accountID string)(*ExternalID, error) {
+
+	log.Printf("[TRACE] Generating ExternalID\n")
+	req, err := as.httpClient.NewRequest(http.MethodPost, "/setup/credentials/aws/externalId", nil)
+
+	if err != nil {
+		return nil, err
+	}
+	
+	q, _ := url.ParseQuery(req.URL.RawQuery)
+
+	q.Add("accountId", accountID)
+	
+	req.URL.RawQuery = q.Encode()
+	
+	var v common.Response
+	_, err = as.httpClient.Do(req, &v)
+	if err != nil {
+		return nil, err
+	}
+	if len(v.Response.Items) == 0 {
+		return nil, errors.New("Couldn't generate externalID")
+	}
+
+	var externalID ExternalID
+
+	fmt.Println(string(v.Response.Items[0]))
+
+	err = json.Unmarshal(v.Response.Items[0], &externalID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	time.Sleep(time.Second * 5)
+
+	return &externalID, nil
+}
+
+func (as *Service) Link(accountID, iamRole string) error {
 
 	body := map[string]map[string]string{
-		"credentials": {"iamRole": iamRole, "externalId": externalID},
+		"credentials": {"iamRole": iamRole},
 	}
 
 	req, err := as.httpClient.NewRequest(http.MethodPost, "/setup/credentials/aws", &body)
@@ -110,24 +157,28 @@ func (as *Service) setupCloudCredentials(accountID, iamRole, externalID string) 
 		return err
 	}
 
-	log.Printf("%#v", req)
+	log.Printf("[TRACE] %#v", req)
 
 	var r common.Response
 
 	_, err = as.httpClient.Do(req, &r)
 
 	if len(r.Response.Errors) > 0 {
-		return fmt.Errorf("failed setting up cloud credentials, %#v", r.Response.Errors)
+		return fmt.Errorf("failed linking account, %#v", r.Response.Errors)
 	}
 
-	log.Printf("%#v", r)
+	if r.Response.Status.Code != 200 {
+		return fmt.Errorf("Can't link accouts")
+	}
+
+	log.Printf("[TRACE] %#v", r)
 
 	return err
 }
 
 // Get returns account by id
 func (as *Service) Get(id string) (*Account, error) {
-	log.Printf("Getting account %v\n", id)
+	log.Printf("[TRACE] Getting account %v\n", id)
 
 	req, err := as.httpClient.NewRequest(http.MethodGet, "/setup/account", nil)
 
@@ -201,7 +252,7 @@ func accountsFromJSON(r common.Response) ([]*Account, error) {
 
 func filterAccountByID(id string, accountList []*Account) (*Account, error) {
 	for _, a := range accountList {
-		log.Printf("Checking %v with %v\n", a.ID, id)
+		log.Printf("[TRACE] Checking %v with %v\n", a.ID, id)
 		if a.ID == id {
 			return a, nil
 		}
